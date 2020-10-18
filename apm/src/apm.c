@@ -31,9 +31,14 @@ read_input_file( char * filename, int * size )
 
     /* Get the number of characters in the textfile */
     fsize = lseek(fd, 0, SEEK_END);
-    lseek(fd, 0, SEEK_SET);
-
-    /* TODO check return of lseek */
+    if(fsize == (off_t) -1){
+	    fprintf( stderr, "Unable to find the file size <%s>\n", filename ) ;
+	    return NULL ;
+    }
+    if (lseek(fd, 0, SEEK_SET) < 0) {
+	    fprintf(stderr, "Unable to lseek to the beginning");
+	    return NULL;
+    }
 
 #if APM_DEBUG
     printf( "File length: %lld\n", fsize ) ;
