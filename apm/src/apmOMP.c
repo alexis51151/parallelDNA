@@ -9,11 +9,12 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
+// Includes added for parallelism
 
 #define APM_DEBUG 0
 
 char * 
-read_input_file( char * filename, int * size )
+read_input_file( char * filename, int * size ) // Read a file and returns its size-first characters (here the DNA sequence)
 {
     char * buf ;
     off_t fsize;
@@ -77,7 +78,7 @@ read_input_file( char * filename, int * size )
 
 #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
-int levenshtein(char *s1, char *s2, int len, int * column) {
+int levenshtein(char *s1, char *s2, int len, int * column) { // Calculate levenshtein's distance ; Idea : use CUDA and GPU to parallelize this calculation
     unsigned int x, y, lastdiag, olddiag;
 
     for (y = 1; y <= len; y++)
