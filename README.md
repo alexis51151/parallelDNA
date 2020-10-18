@@ -1,4 +1,4 @@
-# Approximate Pattern Matching parallelized for DNA patterns
+# APM parallelized for DNA analysis
 DNA sequence comparison tool implementing Approximate Pattern Matching (APM) algorithm with levenshtein's distance.
 
 ## Libraries used
