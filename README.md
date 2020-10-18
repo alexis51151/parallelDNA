@@ -10,12 +10,12 @@ Might use CUDA at some moments if necessary.
 
 If you just want to compare performances between the sequential and parallel implementations, you might want to use our test script: 
 ```bash
-# Basic script that test 3 patterns on a one-line DNA file
+# Basic script that test 3 patterns on a one-line DNA file with approximation distance of 0
 ./test.sh
 ```
 If you want to change the patterns, the approximation distance or the test file, just modify those lines in test.sh:
 ```bash
-PATTERNS="CAG GTACAT GGG"   # List of patters to test
+PATTERNS="CAG GTACAT GGG"   # List of patterns to test
 FILE="dna/line_chrY.fa"     # DNA file
 APPROXIMATION=0             # Approximation distance
 ```
