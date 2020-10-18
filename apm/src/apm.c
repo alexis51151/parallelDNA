@@ -47,7 +47,6 @@ read_input_file( char * filename, int * size )
                 fsize ) ;
         return NULL ;
     }
-
     n_bytes = read( fd, buf, fsize ) ;
     if ( n_bytes != fsize ) 
     {

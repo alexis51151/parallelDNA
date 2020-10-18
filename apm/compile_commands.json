@@ -1,0 +1,15 @@
+[
+ {
+  "directory": "/home/alexis51151/CSC5001/parallelDNA/apm",
+  "arguments": [
+   "gcc",
+   "-O3",
+   "-Iinclude",
+   "-c",
+   "-o",
+   "obj/apm.o",
+   "src/apm.c"
+  ],
+  "file": "src/apm.c"
+ }
+]
