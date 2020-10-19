@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 // Includes added for parallelism
+#include <omp.h> // for OpenMP functions
 
 #define APM_DEBUG 0
 
@@ -42,14 +43,14 @@ read_input_file( char * filename, int * size ) // Read a file and returns its si
     }
 
 #if APM_DEBUG
-    printf( "File length: %lld\n", fsize ) ;
+    printf( "File length: %ld\n", fsize ) ;
 #endif
 
     /* Allocate data to copy the target text */
     buf = (char *)malloc( fsize * sizeof ( char ) ) ;
     if ( buf == NULL ) 
     {
-        fprintf( stderr, "Unable to allocate %lld byte(s) for main array\n",
+        fprintf( stderr, "Unable to allocate %ld byte(s) for main array\n",
                 fsize ) ;
         return NULL ;
     }
@@ -57,7 +58,7 @@ read_input_file( char * filename, int * size ) // Read a file and returns its si
     if ( n_bytes != fsize ) 
     {
         fprintf( stderr, 
-                "Unable to copy %lld byte(s) from text file (%d byte(s) copied)\n",
+                "Unable to copy %ld byte(s) from text file (%d byte(s) copied)\n",
                 fsize, n_bytes) ;
         return NULL ;
     }
@@ -116,7 +117,7 @@ main( int argc, char ** argv )
   char * buf ;
   struct timeval t1, t2;
   double duration ;
-  int n_bytes ;
+  int n_bytes ; // DNA database file size
   int * n_matches ;
 
   /* Check number of arguments */
@@ -171,11 +172,11 @@ main( int argc, char ** argv )
   }
 
 
-  printf( "Approximate Pattern Mathing: "
+  printf( "Approximate Pattern Mathing with OMP: "
           "looking for %d pattern(s) in file %s w/ distance of %d\n", 
           nb_patterns, filename, approx_factor ) ;
 
-  buf = read_input_file( filename, &n_bytes ) ;
+  buf = read_input_file( filename, &n_bytes ) ; // Read the DNA database
   if ( buf == NULL )
   {
       return 1 ;
@@ -197,10 +198,16 @@ main( int argc, char ** argv )
   /* Timer start */
   gettimeofday(&t1, NULL);
 
+  /* Define the OpenMP parameters */
+  #ifdef _OPENMP
+  omp_set_num_threads(4); // Number of threads
+  #endif
+
+  int error = 0; // Error flag
+
+  #pragma omp parallel for schedule(dynamic) private(j) default(shared)
   for ( i = 0 ; i < nb_patterns ; i++ )
   {
-
-
 
       int size_pattern = strlen(pattern[i]) ;
 
@@ -213,35 +220,40 @@ main( int argc, char ** argv )
       {
           fprintf( stderr, "Error: unable to allocate memory for column (%ldB)\n",
                   (size_pattern+1) * sizeof( int ) ) ;
-          return 1 ;
+          error = 1;
       }
+      if(error != 1){
+	      for ( j = 0 ; j < n_bytes ; j++ )
+	      {
+		      int distance = 0 ;
+		      int size ;
 
-      for ( j = 0 ; j < n_bytes ; j++ ) 
-      {
-          int distance = 0 ;
-          int size ;
+		      #if APM_DEBUG
+		      if ( j % 100 == 0 )
+	          {
+	          printf( "Processing byte %d (out of %d)\n", j, n_bytes ) ;
+	          }
+	          #endif
 
-#if APM_DEBUG
-          if ( j % 100 == 0 )
-          {
-          printf( "Procesing byte %d (out of %d)\n", j, n_bytes ) ;
-          }
-#endif
+		      size = size_pattern ;
+		      if ( n_bytes - j < size_pattern )
+		      {
+			      size = n_bytes - j ;
+		      }
 
-          size = size_pattern ;
-          if ( n_bytes - j < size_pattern )
-          {
-              size = n_bytes - j ;
-          }
+		      distance = levenshtein( pattern[i], &buf[j], size, column ) ; // calculate the distance between what's read and the pattern
 
-          distance = levenshtein( pattern[i], &buf[j], size, column ) ;
-
-          if ( distance <= approx_factor ) {
-              n_matches[i]++ ;
-          }
+		      if ( distance <= approx_factor ) {
+			      n_matches[i]++ ;
+		      }
+	      }
+	      free( column );
       }
+  }
 
-  free( column );
+  if(error == 1){ // if there was an error
+	  fprintf( stderr, "Error: unable to allocate memory");
+  	    return 1;
   }
 
   /* Timer stop */

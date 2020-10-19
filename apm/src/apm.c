@@ -48,7 +48,7 @@ read_input_file( char * filename, int * size )
     buf = (char *)malloc( fsize * sizeof ( char ) ) ;
     if ( buf == NULL ) 
     {
-        fprintf( stderr, "Unable to allocate %lld byte(s) for main array\n",
+        fprintf( stderr, "Unable to allocate %ld byte(s) for main array\n",
                 fsize ) ;
         return NULL ;
     }
@@ -56,7 +56,7 @@ read_input_file( char * filename, int * size )
     if ( n_bytes != fsize ) 
     {
         fprintf( stderr, 
-                "Unable to copy %lld byte(s) from text file (%d byte(s) copied)\n",
+                "Unable to copy %ld byte(s) from text file (%d byte(s) copied)\n",
                 fsize, n_bytes) ;
         return NULL ;
     }
