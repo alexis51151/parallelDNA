@@ -113,7 +113,7 @@ main( int argc, char ** argv )
   char * filename ;
   int approx_factor = 0 ;
   int nb_patterns = 0 ;
-  int i, j, k ;
+  int i, j ;
   char * buf ;
   struct timeval t1, t2;
   double duration ;
@@ -183,7 +183,7 @@ main( int argc, char ** argv )
   }
 
   /* Allocate the array of matches */
-  n_matches = calloc(nb_patterns, sizeof(int)); // like malloc but fill n_matches with zeros
+  n_matches = (int *)malloc( nb_patterns * sizeof( int ) ) ;
   if ( n_matches == NULL )
   {
       fprintf( stderr, "Error: unable to allocate memory for %ldB\n",
@@ -205,54 +205,51 @@ main( int argc, char ** argv )
 
   int error = 0; // Error flag
 
-  #pragma omp parallel default(shared)
-	{
-		#pragma omp for schedule(dynamic) private(j)
-		for ( i = 0 ; i < nb_patterns ; i++ )
-		{
+  #pragma omp parallel for schedule(dynamic) private(j) default(shared)
+  for ( i = 0 ; i < nb_patterns ; i++ )
+  {
 
-			int size_pattern = strlen(pattern[i]) ;
+      int size_pattern = strlen(pattern[i]) ;
 
-			int * column ;
+      int * column ;
 
-			column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
-			if ( column == NULL )
-			{
-				fprintf( stderr, "Error: unable to allocate memory for column (%ldB)\n",
-				         (size_pattern+1) * sizeof( int ) ) ;
-				error = 1;
-			}
-			if(error != 1){
-				#pragma omp parallel for schedule(dynamic)
-				for ( j = 0 ; j < n_bytes ; j++ )
-				{
-					int distance = 0 ;
-					int size ;
+      n_matches[i] = 0 ;
 
-#if APM_DEBUG
-					if ( j % 100 == 0 )
+      column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
+      if ( column == NULL ) 
+      {
+          fprintf( stderr, "Error: unable to allocate memory for column (%ldB)\n",
+                  (size_pattern+1) * sizeof( int ) ) ;
+          error = 1;
+      }
+      if(error != 1){
+	      for ( j = 0 ; j < n_bytes ; j++ )
+	      {
+		      int distance = 0 ;
+		      int size ;
+
+		      #if APM_DEBUG
+		      if ( j % 100 == 0 )
 	          {
 	          printf( "Processing byte %d (out of %d)\n", j, n_bytes ) ;
 	          }
-#endif
+	          #endif
 
-					size = size_pattern ;
-					if ( n_bytes - j < size_pattern )
-					{
-						size = n_bytes - j ;
-					}
+		      size = size_pattern ;
+		      if ( n_bytes - j < size_pattern )
+		      {
+			      size = n_bytes - j ;
+		      }
 
-					distance = levenshtein( pattern[i], &buf[j], size, column ) ; // calculate the distance between what's read and the pattern
+		      distance = levenshtein( pattern[i], &buf[j], size, column ) ; // calculate the distance between what's read and the pattern
 
-					if ( distance <= approx_factor ) {
-						n_matches[i]++ ;
-					}
-				}
-				free( column );
-			}
-		}
-	};
-
+		      if ( distance <= approx_factor ) {
+			      n_matches[i]++ ;
+		      }
+	      }
+	      free( column );
+      }
+  }
 
   if(error == 1){ // if there was an error
 	  fprintf( stderr, "Error: unable to allocate memory");
