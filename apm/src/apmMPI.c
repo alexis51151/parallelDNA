@@ -11,7 +11,7 @@
 #include <sys/time.h>
 #include <mpi.h>
 
-#define APM_DEBUG 1
+#define APM_DEBUG 0
 
 char *
 read_input_file( char * filename, int * size )
@@ -108,6 +108,8 @@ int levenshtein(char *s1, char *s2, int len, int * column) {
 int
 main( int argc, char ** argv )
 {
+  MPI_Init(&argc, &argv);
+
   char ** pattern ;
   char * filename ;
   int approx_factor = 0 ;
@@ -116,8 +118,16 @@ main( int argc, char ** argv )
   char * buf ;
   struct timeval t1, t2;
   double duration ;
-  int n_bytes ;
+  int n_bytes = 0;
   int * n_matches ;
+
+  int world;
+  int rank;
+  MPI_Comm_size(MPI_COMM_WORLD, &world);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#if APM_DEBUG
+  printf( "Starting process %d/%d\n", rank, world);
+#endif
 
   /* Check number of arguments */
   if ( argc < 4 )
@@ -192,15 +202,6 @@ main( int argc, char ** argv )
   /* Timer start */
   gettimeofday(&t1, NULL);
 
-  int world;
-  int rank;
-  MPI_Init(&argc, &argv);
-  MPI_Comm_size(MPI_COMM_WORLD, &world);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#if APM_DEBUG
-  printf( "Starting process %d/%d\n", rank, world);
-#endif
-
 
   /* The DNA file of size `n_bytes` should be divided into `rank` parts
      so that each MPI process has one part to take care of.
@@ -209,23 +210,34 @@ main( int argc, char ** argv )
      The potential remaining bytes are handled by thread `world`.
   */
 
+  /* Wait for processes to start */
+  MPI_Barrier(MPI_COMM_WORLD);
 
-  /* Process 0 reads the input file */
   if (rank == 0) {
+      /* Process 0 reads the input file and broadcasts the file size */
       buf = read_input_file( filename, &n_bytes ) ;
       if ( buf == NULL )
       {
           return 1 ;
       }
-  }
+      MPI_Bcast(&n_bytes, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
-  /* Wait for processes to start */
-  MPI_Barrier(MPI_COMM_WORLD);
+  } else {
+      /* Other processes receive the broadcast */
+      MPI_Bcast(&n_bytes, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+      /* They need to allocate data to copy the target text according to the received size*/
+      buf = (char *)malloc( n_bytes * sizeof ( char ) ) ;
+      if ( buf == NULL )
+      {
+          fprintf( stderr, "Unable to allocate %ld byte(s) for buf array\n",
+                  n_bytes ) ;
+          return EXIT_FAILURE;
+      }
+  }
 
   /* Broadcast `buf` and `n_bytes` from process 0 so every process can access
      the length and the content of the dna file */
-  MPI_Bcast(&n_bytes, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&buf, sizeof(buf) / sizeof(char), MPI_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(buf, n_bytes + 1, MPI_BYTE, 0, MPI_COMM_WORLD);
 
   /* The last process should check the remaining bytes
      from `world * (n_bytes / world)` to `n_bytes` */
@@ -236,7 +248,7 @@ main( int argc, char ** argv )
   }
 
 #if APM_DEBUG
-  printf( "Process %d/%d will process bytes from %d to %d\n", rank, world, start, end);
+  printf( "[%d] will process bytes %d to %d\n", rank, start, end);
 #endif
 
 
@@ -244,17 +256,7 @@ main( int argc, char ** argv )
   {
       int size_pattern = strlen(pattern[i]) ;
 
-      int * column;
-
-      /* TODO: La ligne ci-dessous provoque un segfault dans les processus de rang != 0
-         exécuter la commande `mpirun -np 2 ./apmMPI 0 dna/small_chrY.fa CAGA `renvoie une erreur:
-         [ectoplasma:576208] Signal: Segmentation fault (11)
-         [ectoplasma:576208] Signal code: Address not mapped (1)
-         que je n'explique pas puisque n_matches est bien alloué par un malloc ligne 180...
-         */
-      n_matches[i] = 0 ;
-
-      column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
+      int * column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
 
       if ( column == NULL )
       {
@@ -262,6 +264,8 @@ main( int argc, char ** argv )
                   (size_pattern+1) * sizeof( int ) ) ;
           return 1 ;
       }
+
+      n_matches[i] = 0 ;
 
       for ( j = start ; j < end ; j++ )
       {
@@ -271,7 +275,7 @@ main( int argc, char ** argv )
 #if APM_DEBUG
           if ( j % 100 == 0 )
           {
-              printf( "Process %d/%d processing byte %d (out of %d)\n", rank, world, j, n_bytes ) ;
+              printf( "[%d]: processing byte %d (out of %d) for pattern %s\n", rank, j, n_bytes, pattern[i] ) ;
           }
 #endif
 
@@ -291,6 +295,10 @@ main( int argc, char ** argv )
       }
       free( column );
   }
+  for ( i = 0 ; i < nb_patterns ; i++ )
+  {
+      printf( "[%d]: Number of matches for pattern <%s>: %d\n", rank, pattern[i], n_matches[i] ) ;
+  }
 
   /* Each process sends its `n_matches` array to process 0
   Process 0 receives each array and sums it to its own `n_matches`*/
@@ -309,7 +317,7 @@ main( int argc, char ** argv )
               return 1 ;
           }
 
-          MPI_Recv(&n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
+          MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
           for (j=0; j<nb_patterns; j++) {
             n_matches[j] = n_matches[j] + n_matches_recv[j];
           }
@@ -318,7 +326,7 @@ main( int argc, char ** argv )
           free(n_matches_recv);
       }
   } else {
-      MPI_Send(&n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
+      MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
   }
 
 
@@ -327,7 +335,7 @@ main( int argc, char ** argv )
 
   duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
 
-  printf( "APM done in %lf s\n", duration ) ;
+  printf( "[%d]: APM done in %lf s\n", rank, duration ) ;
 
   /*****
    * END MAIN LOOP
@@ -336,7 +344,7 @@ main( int argc, char ** argv )
   if (rank == 0) {
       for ( i = 0 ; i < nb_patterns ; i++ )
       {
-          printf( "Number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i] ) ;
+          printf( "Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i] ) ;
       }
   }
 
