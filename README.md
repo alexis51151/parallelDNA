@@ -8,7 +8,7 @@ Might use CUDA at some moments if necessary.
 
 ## How to use
 
-If you just want to compare performances between the sequential and parallel implementations, you might want to use our test script: 
+If you just want to compare performances between the sequential and parallel implementations, you might want to use our test script:
 ```bash
 # Basic script that test 3 patterns on a one-line DNA file with approximation distance of 0
 ./test.sh
@@ -31,8 +31,13 @@ make
 ./apm approximation_factor dna_database pattern1 pattern2 ...
 ```
 - Parallel execution :
+With OpenMP:
 ```bash
 ./apmOMP approximation_factor dna_database pattern1 pattern2 ...
+```
+With MPI:
+```bash
+mpirun -np number_of_processes ./apmMPI approximation_factor dna_database pattern1 pattern2 ...
 ```
 
 
