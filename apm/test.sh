@@ -5,6 +5,7 @@ BIN="apm apmOMP" 			# Name of the binary file
 PATTERNS="CAG GTACAT GGG" 	# List of patters to test
 FILE="dna/small_chrY.fa" 	# DNA test-file
 APPROXIMATION=0			# Approximation number
+MPI_NP=4
 
 
  # Fresh generation of binaries
@@ -15,3 +16,6 @@ make > /dev/null;
 for algo in $(echo $BIN); do
 	./${algo} $APPROXIMATION $FILE $(echo $PATTERNS)
 done
+
+# Test MPI implementation
+mpirun -np $MPI_NP ./apmMPI $APPROXIMATION $FILE $(echo $PATTERNS)
