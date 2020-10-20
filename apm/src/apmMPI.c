@@ -181,9 +181,9 @@ main( int argc, char ** argv )
   }
 
 
-  printf( "Approximate Pattern Matching: "
+  printf( "[%d]: Approximate Pattern Matching with MPI: "
           "looking for %d pattern(s) in file %s w/ distance of %d\n",
-          nb_patterns, filename, approx_factor ) ;
+          rank, nb_patterns, filename, approx_factor ) ;
 
 
   /* Allocate the array of matches */
@@ -295,10 +295,13 @@ main( int argc, char ** argv )
       }
       free( column );
   }
+
+#if APM_DEBUG
   for ( i = 0 ; i < nb_patterns ; i++ )
   {
       printf( "[%d]: Number of matches for pattern <%s>: %d\n", rank, pattern[i], n_matches[i] ) ;
   }
+#endif
 
   /* Each process sends its `n_matches` array to process 0
   Process 0 receives each array and sums it to its own `n_matches`*/

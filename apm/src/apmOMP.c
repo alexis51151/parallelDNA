@@ -14,7 +14,7 @@
 
 #define APM_DEBUG 0
 
-char * 
+char *
 read_input_file( char * filename, int * size ) // Read a file and returns its size-first characters (here the DNA sequence)
 {
     char * buf ;
@@ -24,7 +24,7 @@ read_input_file( char * filename, int * size ) // Read a file and returns its si
 
     /* Open the text file */
     fd = open( filename, O_RDONLY ) ;
-    if ( fd == -1 ) 
+    if ( fd == -1 )
     {
         fprintf( stderr, "Unable to open the text file <%s>\n", filename ) ;
         return NULL ;
@@ -48,16 +48,16 @@ read_input_file( char * filename, int * size ) // Read a file and returns its si
 
     /* Allocate data to copy the target text */
     buf = (char *)malloc( fsize * sizeof ( char ) ) ;
-    if ( buf == NULL ) 
+    if ( buf == NULL )
     {
         fprintf( stderr, "Unable to allocate %ld byte(s) for main array\n",
                 fsize ) ;
         return NULL ;
     }
     n_bytes = read( fd, buf, fsize ) ;
-    if ( n_bytes != fsize ) 
+    if ( n_bytes != fsize )
     {
-        fprintf( stderr, 
+        fprintf( stderr,
                 "Unable to copy %ld byte(s) from text file (%d byte(s) copied)\n",
                 fsize, n_bytes) ;
         return NULL ;
@@ -92,8 +92,8 @@ int levenshtein(char *s1, char *s2, int len, int * column) { // Calculate levens
         for (y = 1; y <= len; y++) {
             olddiag = column[y];
             column[y] = MIN3(
-                    column[y] + 1, 
-                    column[y-1] + 1, 
+                    column[y] + 1,
+                    column[y-1] + 1,
                     lastdiag + (s1[y-1] == s2[x-1] ? 0 : 1)
                     );
             lastdiag = olddiag;
@@ -106,7 +106,7 @@ int levenshtein(char *s1, char *s2, int len, int * column) { // Calculate levens
 
 
 
-int 
+int
 main( int argc, char ** argv )
 {
   char ** pattern ;
@@ -121,10 +121,10 @@ main( int argc, char ** argv )
   int * n_matches ;
 
   /* Check number of arguments */
-  if ( argc < 4 ) 
+  if ( argc < 4 )
   {
     printf( "Usage: %s approximation_factor "
-            "dna_database pattern1 pattern2 ...\n", 
+            "dna_database pattern1 pattern2 ...\n",
             argv[0] ) ;
     return 1 ;
   }
@@ -140,28 +140,28 @@ main( int argc, char ** argv )
 
   /* Fill the pattern array */
   pattern = (char **)malloc( nb_patterns * sizeof( char * ) ) ;
-  if ( pattern == NULL ) 
+  if ( pattern == NULL )
   {
-      fprintf( stderr, 
-              "Unable to allocate array of pattern of size %d\n", 
+      fprintf( stderr,
+              "Unable to allocate array of pattern of size %d\n",
               nb_patterns ) ;
       return 1 ;
   }
 
   /* Grab the patterns */
-  for ( i = 0 ; i < nb_patterns ; i++ ) 
+  for ( i = 0 ; i < nb_patterns ; i++ )
   {
       int l ;
 
       l = strlen(argv[i+3]) ;
-      if ( l <= 0 ) 
+      if ( l <= 0 )
       {
           fprintf( stderr, "Error while parsing argument %d\n", i+3 ) ;
           return 1 ;
       }
 
       pattern[i] = (char *)malloc( (l+1) * sizeof( char ) ) ;
-      if ( pattern[i] == NULL ) 
+      if ( pattern[i] == NULL )
       {
           fprintf( stderr, "Unable to allocate string of size %d\n", l ) ;
           return 1 ;
@@ -172,8 +172,8 @@ main( int argc, char ** argv )
   }
 
 
-  printf( "Approximate Pattern Mathing with OMP: "
-          "looking for %d pattern(s) in file %s w/ distance of %d\n", 
+  printf( "Approximate Pattern Matching with OMP: "
+          "looking for %d pattern(s) in file %s w/ distance of %d\n",
           nb_patterns, filename, approx_factor ) ;
 
   buf = read_input_file( filename, &n_bytes ) ; // Read the DNA database
@@ -272,7 +272,7 @@ main( int argc, char ** argv )
 
   for ( i = 0 ; i < nb_patterns ; i++ )
   {
-      printf( "Number of matches for pattern <%s>: %d\n", 
+      printf( "Number of matches for pattern <%s>: %d\n",
               pattern[i], n_matches[i] ) ;
   }
 
