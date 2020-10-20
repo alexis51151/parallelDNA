@@ -9,7 +9,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/time.h>
-#include <mpi.h>
+#include <mpi/mpi.h>
 
 #define APM_DEBUG 0
 
@@ -121,8 +121,8 @@ main( int argc, char ** argv )
   int n_bytes = 0;
   int * n_matches ;
 
-  int world;
-  int rank;
+  int world; // nb of nodes
+  int rank;  // rank of the current node
   MPI_Comm_size(MPI_COMM_WORLD, &world);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #if APM_DEBUG
@@ -180,10 +180,11 @@ main( int argc, char ** argv )
 
   }
 
-
-  printf( "[%d]: Approximate Pattern Matching with MPI: "
-          "looking for %d pattern(s) in file %s w/ distance of %d\n",
-          rank, nb_patterns, filename, approx_factor ) ;
+  if(rank == 0){
+	  printf( "[%d]: Approximate Pattern Matching with MPI: "
+	          "looking for %d pattern(s) in file %s w/ distance of %d\n",
+	          rank, nb_patterns, filename, approx_factor ) ;
+  }
 
 
   /* Allocate the array of matches */
@@ -207,7 +208,7 @@ main( int argc, char ** argv )
      so that each MPI process has one part to take care of.
      Process `rank` will be responsible to look for every substring in the bytes
      from `rank * (n_bytes // size)` to `(rank + 1) * (n_bytes // size) - 1`
-     The potential remaining bytes are handled by thread `world`.
+     The potential remaining bytes are handled by the last thread.
   */
 
   /* Wait for processes to start */
@@ -229,7 +230,7 @@ main( int argc, char ** argv )
       buf = (char *)malloc( n_bytes * sizeof ( char ) ) ;
       if ( buf == NULL )
       {
-          fprintf( stderr, "Unable to allocate %ld byte(s) for buf array\n",
+          fprintf( stderr, "Unable to allocate %d byte(s) for buf array\n",
                   n_bytes ) ;
           return EXIT_FAILURE;
       }
@@ -307,27 +308,27 @@ main( int argc, char ** argv )
   Process 0 receives each array and sums it to its own `n_matches`*/
   if (rank == 0) {
 
-
-      /* Reveives `n_matches` for every process and sums it to its own `n_matches` */
+      /* Receives `n_matches` for every process and sums it to its own `n_matches` */
       MPI_Status status;
-      for (i=1; i<world; i++) {
-          /* Allocate an array to receive matches */
-          int * n_matches_recv = (int *)malloc( nb_patterns * sizeof( int ) ) ;
-          if ( n_matches_recv == NULL )
-          {
-              fprintf( stderr, "Error: unable to allocate memory for %ldB\n",
-                      nb_patterns * sizeof( int ) ) ;
-              return 1 ;
-          }
-
+	  /* Allocate an array to receive matches */
+	  int * n_matches_recv = (int *)malloc( nb_patterns * sizeof( int ) ) ;
+	  if ( n_matches_recv == NULL )
+	  {
+		  fprintf( stderr, "Error: unable to allocate memory for %ldB\n",
+		           nb_patterns * sizeof( int ) ) ;
+		  return 1 ;
+	  }
+	  for (i=1; i<world; i++) {
+	  	  /* Clear the buffer */
+	  	  memset(n_matches_recv, 0, nb_patterns * sizeof(int));
+	  	  /* Read the array of matches from rank i*/
           MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
           for (j=0; j<nb_patterns; j++) {
-            n_matches[j] = n_matches[j] + n_matches_recv[j];
+            n_matches[j] += n_matches_recv[j];
           }
-
-          /* Free array after receiving*/
-          free(n_matches_recv);
       }
+	  /* Free array */
+	  free(n_matches_recv);
   } else {
       MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
   }
