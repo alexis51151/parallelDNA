@@ -120,6 +120,7 @@ main( int argc, char ** argv )
   double duration ;
   int n_bytes = 0;
   int * n_matches ;
+  MPI_Status status;
 
   int world;
   int rank;
@@ -157,7 +158,9 @@ main( int argc, char ** argv )
       return 1 ;
   }
 
-  /* Grab the patterns */
+
+  int max_len_pattern = 0;
+  /* Grab the patterns and get the maximum length*/
   for ( i = 0 ; i < nb_patterns ; i++ )
   {
       int l ;
@@ -167,6 +170,10 @@ main( int argc, char ** argv )
       {
           fprintf( stderr, "Error while parsing argument %d\n", i+3 ) ;
           return 1 ;
+      }
+
+      if ( l > max_len_pattern ) {
+        max_len_pattern = l;
       }
 
       pattern[i] = (char *)malloc( (l+1) * sizeof( char ) ) ;
@@ -209,47 +216,47 @@ main( int argc, char ** argv )
      from `rank * (n_bytes // size)` to `(rank + 1) * (n_bytes // size) - 1`
      The potential remaining bytes are handled by thread `world`.
   */
-
-  /* Wait for processes to start */
-  MPI_Barrier(MPI_COMM_WORLD);
-
+  int diff;
   if (rank == 0) {
-      /* Process 0 reads the input file and broadcasts the file size */
+      /* Process 0 reads the input file and divides the file between the other processes*/
       buf = read_input_file( filename, &n_bytes ) ;
       if ( buf == NULL )
       {
           return 1 ;
       }
-      MPI_Bcast(&n_bytes, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
+      int start = 0;
+      int end = n_bytes / world - 1 + max_len_pattern - 1;
+      for (i = 1; i < world; i++) {
+        start += n_bytes / world;
+        end += n_bytes / world;
+        /* The last process should check the remaining bytes
+           from `world * (n_bytes / world)` to `n_bytes` */
+        if (end > n_bytes || i == world - 1) {
+          end = n_bytes;
+        }
+#if APM_DEBUG
+  printf( "[%d] will process bytes %d to %d\n", i, start, end);
+#endif
+        diff = end - start + 1;
+        /* Send to each process its attributed section */
+        MPI_Send(&diff, 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
+        MPI_Send(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD);
+      }
+      diff = n_bytes / world - 1 + max_len_pattern - 1;
   } else {
       /* Other processes receive the broadcast */
-      MPI_Bcast(&n_bytes, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
+      MPI_Recv(&diff, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
       /* They need to allocate data to copy the target text according to the received size*/
-      buf = (char *)malloc( n_bytes * sizeof ( char ) ) ;
+      buf = (char *)malloc( diff * sizeof ( char ) ) ;
       if ( buf == NULL )
       {
           fprintf( stderr, "Unable to allocate %ld byte(s) for buf array\n",
-                  n_bytes ) ;
+                  diff ) ;
           return EXIT_FAILURE;
       }
+      MPI_Recv(buf, diff, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
   }
-
-  /* Broadcast `buf` and `n_bytes` from process 0 so every process can access
-     the length and the content of the dna file */
-  MPI_Bcast(buf, n_bytes + 1, MPI_BYTE, 0, MPI_COMM_WORLD);
-
-  /* The last process should check the remaining bytes
-     from `world * (n_bytes / world)` to `n_bytes` */
-  int start = rank * (n_bytes / world);
-  int end = (rank + 1) * (n_bytes / world) - 1;
-  if (rank == world - 1) {
-      end = n_bytes;
-  }
-
-#if APM_DEBUG
-  printf( "[%d] will process bytes %d to %d\n", rank, start, end);
-#endif
 
 
   for ( i = 0 ; i < nb_patterns ; i++ )
@@ -267,7 +274,7 @@ main( int argc, char ** argv )
 
       n_matches[i] = 0 ;
 
-      for ( j = start ; j < end ; j++ )
+      for ( j = 0 ; j < diff - max_len_pattern + 1; j++ )
       {
           int distance = 0 ;
           int size ;
@@ -275,16 +282,16 @@ main( int argc, char ** argv )
 #if APM_DEBUG
           if ( j % 100 == 0 )
           {
-              printf( "[%d]: processing byte %d (out of %d) for pattern %s\n", rank, j, n_bytes, pattern[i] ) ;
+              printf( "[%d]: processing byte %d (out of %d) for pattern %s\n", rank, j, diff, pattern[i] ) ;
           }
 #endif
 
           /* Process `rank` should check every substring starting in its attributed range.
              The size is equals to the pattern size except for when the end of the buffer is reached.*/
           size = size_pattern ;
-          if ( n_bytes - j < size_pattern )
+          if ( diff - j < size_pattern )
           {
-              size = n_bytes - j ;
+              size = diff - j ;
           }
 
           distance = levenshtein( pattern[i], &buf[j], size, column ) ;
@@ -309,7 +316,6 @@ main( int argc, char ** argv )
 
 
       /* Reveives `n_matches` for every process and sums it to its own `n_matches` */
-      MPI_Status status;
       for (i=1; i<world; i++) {
           /* Allocate an array to receive matches */
           int * n_matches_recv = (int *)malloc( nb_patterns * sizeof( int ) ) ;
