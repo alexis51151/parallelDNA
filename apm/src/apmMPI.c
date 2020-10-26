@@ -341,9 +341,10 @@ main(int argc, char **argv) {
 	gettimeofday(&t2, NULL);
 
 	duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
+#if APM_DEBUG
 
 	printf("[%d]: APM done in %lf s\n", rank, duration);
-
+#endif
 	double total_duration =  duration;
 	if(rank == 0){
 		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
@@ -353,7 +354,7 @@ main(int argc, char **argv) {
 			MPI_Recv(&aux, 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
 			total_duration += aux;
 		}
-		printf("Total time :  APM done in %lf s\n", total_duration);
+		printf("APM done in %lf s\n", total_duration);
 	}
 	else {
 		MPI_Send(&duration, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);
