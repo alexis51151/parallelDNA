@@ -14,120 +14,118 @@
 #define APM_DEBUG 0
 
 char *
-read_input_file( char * filename, int * size )
-{
-    char * buf ;
-    off_t fsize;
-    int fd = 0 ;
-    int n_bytes = 1 ;
+read_input_file(char *filename, int *size) {
+	char *buf;
+	off_t fsize;
+	int fd = 0;
+	int n_bytes = 1;
 
-    /* Open the text file */
-    fd = open( filename, O_RDONLY ) ;
-    if ( fd == -1 )
-    {
-        fprintf( stderr, "Unable to open the text file <%s>\n", filename ) ;
-        return NULL ;
-    }
+	/* Open the text file */
+	fd = open(filename, O_RDONLY);
+	if (fd == -1) {
+		fprintf(stderr, "Unable to open the text file <%s>\n", filename);
+		return NULL;
+	}
 
 
-    /* Get the number of characters in the textfile */
-    fsize = lseek(fd, 0, SEEK_END);
-    if(fsize == (off_t) -1){
-	    fprintf( stderr, "Unable to find the file size <%s>\n", filename ) ;
-	    return NULL ;
-    }
-    if (lseek(fd, 0, SEEK_SET) < 0) {
-	    fprintf(stderr, "Unable to lseek to the beginning");
-	    return NULL;
-    }
+	/* Get the number of characters in the textfile */
+	fsize = lseek(fd, 0, SEEK_END);
+	if (fsize == (off_t) -1) {
+		fprintf(stderr, "Unable to find the file size <%s>\n", filename);
+		return NULL;
+	}
+	if (lseek(fd, 0, SEEK_SET) < 0) {
+		fprintf(stderr, "Unable to lseek to the beginning");
+		return NULL;
+	}
 
 #if APM_DEBUG
-    printf( "File length: %lld\n", fsize ) ;
+	printf( "File length: %lld\n", fsize ) ;
 #endif
 
-    /* Allocate data to copy the target text */
-    buf = (char *)malloc( fsize * sizeof ( char ) ) ;
-    if ( buf == NULL )
-    {
-        fprintf( stderr, "Unable to allocate %ld byte(s) for main array\n",
-                fsize ) ;
-        return NULL ;
-    }
-    n_bytes = read( fd, buf, fsize ) ;
-    if ( n_bytes != fsize )
-    {
-        fprintf( stderr,
-                "Unable to copy %ld byte(s) from text file (%d byte(s) copied)\n",
-                fsize, n_bytes) ;
-        return NULL ;
-    }
+	/* Allocate data to copy the target text */
+	buf = (char *) malloc(fsize * sizeof(char));
+	if (buf == NULL) {
+		fprintf(stderr, "Unable to allocate %ld byte(s) for main array\n",
+		        fsize);
+		return NULL;
+	}
+	n_bytes = read(fd, buf, fsize);
+	if (n_bytes != fsize) {
+		fprintf(stderr,
+		        "Unable to copy %ld byte(s) from text file (%d byte(s) copied)\n",
+		        fsize, n_bytes);
+		return NULL;
+	}
 
 #if APM_DEBUG
-    printf( "Number of read bytes: %d\n", n_bytes ) ;
+	printf( "Number of read bytes: %d\n", n_bytes ) ;
 #endif
 
-    *size = n_bytes ;
+	*size = n_bytes;
 
 
-    close( fd ) ;
+	close(fd);
 
 
-    return buf ;
+	return buf;
 }
 
 
 #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
-int levenshtein(char *s1, char *s2, int len, int * column) {
-    unsigned int x, y, lastdiag, olddiag;
+int levenshtein(char *s1, char *s2, int len, int *column) {
+	unsigned int x, y, lastdiag, olddiag;
 
-    for (y = 1; y <= len; y++)
-    {
-        column[y] = y;
-    }
-    for (x = 1; x <= len; x++) {
-        column[0] = x;
-        lastdiag = x-1 ;
-        for (y = 1; y <= len; y++) {
-            olddiag = column[y];
-            column[y] = MIN3(
-                    column[y] + 1,
-                    column[y-1] + 1,
-                    lastdiag + (s1[y-1] == s2[x-1] ? 0 : 1)
-                    );
-            lastdiag = olddiag;
+	for (y = 1; y <= len; y++) {
+		column[y] = y;
+	}
 
-        }
-    }
-    return(column[len]);
+	for (x = 1; x <= len; x++) {
+		column[0] = x;
+		lastdiag = x - 1;
+		for (y = 1; y <= len; y++) {
+			olddiag = column[y];
+			column[y] = MIN3(
+					column[y] + 1,
+					column[y - 1] + 1,
+					lastdiag + (s1[y - 1] == s2[x - 1] ? 0 : 1)
+			);
+			lastdiag = olddiag;
+
+		}
+	}
+	return (column[len]);
 }
 
 
-
-
 int
-main( int argc, char ** argv )
-{
-  MPI_Init(&argc, &argv);
+main(int argc, char **argv) {
 
-  char ** pattern ;
-  char * filename ;
-  int approx_factor = 0 ;
-  int nb_patterns = 0 ;
-  int i, j ;
-  char * buf ;
-  struct timeval t1, t2;
-  double duration ;
-  int n_bytes = 0;
-  int * n_matches ;
-  MPI_Status status;
+	/* We only call MPI primitives out of OMP parallel regions */
+	int required = MPI_THREAD_FUNNELED;
+	int provided;
+	MPI_Init_thread(&argc, &argv, required, &provided);
 
-  int world;
-  int rank;
-  MPI_Comm_size(MPI_COMM_WORLD, &world);
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	char **pattern;
+	char *filename;
+	int approx_factor = 0;
+	int nb_patterns = 0;
+	int i, j;
+	char *buf;
+	struct timeval t1, t2;
+	double duration;
+	int n_bytes = 0;
+	int *n_matches;
+        MPI_Status status;
+
+	int world; // nb of nodes
+	int rank;  // rank of the current node
+	MPI_Comm_size(MPI_COMM_WORLD, &world);
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
 #if APM_DEBUG
-  printf( "Starting process %d/%d\n", rank, world);
+	printf( "Starting process %d/%d\n", rank, world);
 #endif
 
   /* Check number of arguments */
@@ -304,60 +302,74 @@ main( int argc, char ** argv )
   }
 
 #if APM_DEBUG
-  for ( i = 0 ; i < nb_patterns ; i++ )
-  {
-      printf( "[%d]: Number of matches for pattern <%s>: %d\n", rank, pattern[i], n_matches[i] ) ;
-  }
+	for ( i = 0 ; i < nb_patterns ; i++ )
+	{
+		printf( "[%d]: Number of matches for pattern <%s>: %d\n", rank, pattern[i], n_matches[i] ) ;
+	}
 #endif
 
-  /* Each process sends its `n_matches` array to process 0
-  Process 0 receives each array and sums it to its own `n_matches`*/
-  if (rank == 0) {
+	/* Each process sends its `n_matches` array to process 0
+	Process 0 receives each array and sums it to its own `n_matches`*/
+	if (rank == 0) {
+
+		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
+		MPI_Status status;
+		/* Allocate an array to receive matches */
+		int *n_matches_recv = (int *) malloc(nb_patterns * sizeof(int));
+		if (n_matches_recv == NULL) {
+			fprintf(stderr, "Error: unable to allocate memory for %ldB\n",
+			        nb_patterns * sizeof(int));
+			return 1;
+		}
+		for (i = 1; i < world; i++) {
+			/* Clear the buffer */
+			memset(n_matches_recv, 0, nb_patterns * sizeof(int));
+			/* Read the array of matches from rank i*/
+			MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
+			for (j = 0; j < nb_patterns; j++) {
+				n_matches[j] += n_matches_recv[j];
+			}
+		}
+		/* Free array */
+		free(n_matches_recv);
+	} else {
+		MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
+	}
 
 
-      /* Reveives `n_matches` for every process and sums it to its own `n_matches` */
-      for (i=1; i<world; i++) {
-          /* Allocate an array to receive matches */
-          int * n_matches_recv = (int *)malloc( nb_patterns * sizeof( int ) ) ;
-          if ( n_matches_recv == NULL )
-          {
-              fprintf( stderr, "Error: unable to allocate memory for %ldB\n",
-                      nb_patterns * sizeof( int ) ) ;
-              return 1 ;
-          }
+	/* Timer stop */
+	gettimeofday(&t2, NULL);
 
-          MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
-          for (j=0; j<nb_patterns; j++) {
-            n_matches[j] = n_matches[j] + n_matches_recv[j];
-          }
+	duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
 
-          /* Free array after receiving*/
-          free(n_matches_recv);
-      }
-  } else {
-      MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
-  }
+	printf("[%d]: APM done in %lf s\n", rank, duration);
 
+	double total_duration =  duration;
+	if(rank == 0){
+		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
+		MPI_Status status;
+		for(i = 1; i < world; i++){
+			double aux;
+			MPI_Recv(&aux, 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
+			total_duration += aux;
+		}
+		printf("Total time :  APM done in %lf s\n", total_duration);
+	}
+	else {
+		MPI_Send(&duration, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);
+	}
 
-  /* Timer stop */
-  gettimeofday(&t2, NULL);
+	/*****
+	 * END MAIN LOOP
+	 ******/
 
-  duration = (t2.tv_sec -t1.tv_sec)+((t2.tv_usec-t1.tv_usec)/1e6);
+	if (rank == 0) {
+		for (i = 0; i < nb_patterns; i++) {
+			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
+		}
+	}
 
-  printf( "[%d]: APM done in %lf s\n", rank, duration ) ;
+	MPI_Finalize();
 
-  /*****
-   * END MAIN LOOP
-   ******/
-
-  if (rank == 0) {
-      for ( i = 0 ; i < nb_patterns ; i++ )
-      {
-          printf( "Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i] ) ;
-      }
-  }
-
-  MPI_Finalize();
-
-  return 0 ;
+	return 0;
 }
