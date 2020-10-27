@@ -158,7 +158,7 @@ main(int argc, char **argv) {
 
 
   int max_len_pattern = 0;
-  /* Grab the patterns and get the maximum length*/
+  /* Grab the patterns and get the maximum pattern length*/
   for ( i = 0 ; i < nb_patterns ; i++ )
   {
       int l ;
@@ -223,13 +223,17 @@ main(int argc, char **argv) {
           return 1 ;
       }
 
+      /* Each process needs to have access to the section of the file that it is responsible for
+       * to which we add `max_len_pattern - 1` bytes to allow him to check the patterns
+       * in case the start at the end of its associated section.
+       * */
       int start = 0;
       int end = n_bytes / world - 1 + max_len_pattern - 1;
       for (i = 1; i < world; i++) {
         start += n_bytes / world;
         end += n_bytes / world;
         /* The last process should check the remaining bytes
-           from `world * (n_bytes / world)` to `n_bytes` */
+           until `n_bytes`*/
         if (end > n_bytes || i == world - 1) {
           end = n_bytes;
         }
@@ -243,7 +247,7 @@ main(int argc, char **argv) {
       }
       diff = n_bytes / world - 1 + max_len_pattern - 1;
   } else {
-      /* Other processes receive the broadcast */
+      /* Other processes receive the number of bytes they need to process */
       MPI_Recv(&diff, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
       /* They need to allocate data to copy the target text according to the received size*/
       buf = (char *)malloc( diff * sizeof ( char ) ) ;
@@ -253,11 +257,11 @@ main(int argc, char **argv) {
                   diff ) ;
           return EXIT_FAILURE;
       }
+      /* They receive their part of the file */
       MPI_Recv(buf, diff, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
   }
 
-
-  for ( i = 0 ; i < nb_patterns ; i++ )
+    for ( i = 0 ; i < nb_patterns ; i++ )
   {
       int size_pattern = strlen(pattern[i]) ;
 
