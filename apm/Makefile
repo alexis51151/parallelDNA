@@ -1,4 +1,4 @@
-BIN=apm apmOMP apmMPI
+BIN=apm apmOMP apmMPI apmOMPMPI
 SRC_DIR=src
 HEADER_DIR=include
 OBJ_DIR=obj
@@ -8,9 +8,9 @@ MPICC=mpicc
 CFLAGS=-g -O3 -I$(HEADER_DIR) -I/usr/lib/include/mpi/ -fopenmp
 LDFLAGS=
 
-SRC= apm.c apmOMP.c apmMPI.c
+SRC= apm.c apmOMP.c apmMPI.c apmOMPMPI.c
 
-OBJ= $(OBJ_DIR)/apm.o $(OBJ_DIR)/apmOMP.o $(OBJ_DIR)/apmMPI.o
+OBJ= $(OBJ_DIR)/apm.o $(OBJ_DIR)/apmOMP.o $(OBJ_DIR)/apmMPI.o $(OBJ_DIR)/apmOMPMPI.c
 
 all: $(OBJ_DIR) $(BIN)
 
@@ -27,6 +27,9 @@ apmOMP:$(OBJ_DIR)/apmOMP.o
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 apmMPI:$(OBJ_DIR)/apmMPI.o
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -o $@ $^
+
+apmOMPMPI:$(OBJ_DIR)/apmOMPMPI.o
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 

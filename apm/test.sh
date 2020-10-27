@@ -21,3 +21,7 @@ done
 # Test MPI implementation
 echo "---" ${algo} parallelized algorithm results  on $FILE "---"
 mpirun -np $MPI_NP ./apmMPI $APPROXIMATION $FILE $(echo $PATTERNS)
+
+# Test OMP MPI implementation
+echo "---" ${algo} parallelized algorithm results  on $FILE "---"
+mpirun -np $MPI_NP ./apmOMPMPI $APPROXIMATION $FILE $(echo $PATTERNS)
