@@ -305,6 +305,7 @@ main(int argc, char **argv) {
 	}
 
 
+
 	/* Timer stop */
 	gettimeofday(&t2, NULL);
 	duration = ((t2.tv_sec - t1.tv_sec) * 1e6 + (t2.tv_usec - t1.tv_usec)) / 1e6;
