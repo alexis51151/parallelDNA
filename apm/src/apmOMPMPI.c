@@ -291,24 +291,15 @@ main(int argc, char **argv) {
 
 		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
 		MPI_Status status;
-		/* Allocate an array to receive matches */
-		int *n_matches_recv = (int *) malloc(nb_patterns * sizeof(int));
-		if (n_matches_recv == NULL) {
-			fprintf(stderr, "Error: unable to allocate memory for %ldB\n",
-			        nb_patterns * sizeof(int));
-			return 1;
-		}
+		/* Create an array to receive matches */
+		int n_matches_recv[nb_patterns];
 		for (i = 1; i < world; i++) {
-			/* Clear the buffer */
-			memset(n_matches_recv, 0, nb_patterns * sizeof(int));
 			/* Read the array of matches from rank i*/
 			MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
 			for (j = 0; j < nb_patterns; j++) {
 				n_matches[j] += n_matches_recv[j];
 			}
 		}
-		/* Free array */
-		free(n_matches_recv);
 	} else {
 		MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
 	}
