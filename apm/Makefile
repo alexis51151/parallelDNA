@@ -5,7 +5,7 @@ OBJ_DIR=obj
 
 CC=gcc
 MPICC=mpicc
-CFLAGS=-g -O3 -I$(HEADER_DIR) -I/usr/lib/include/mpi/ -fopenmp
+CFLAGS=-g -O3 -I$(HEADER_DIR) -I/usr/include/mpi/ -fopenmp
 LDFLAGS=
 
 SRC= apm.c apmOMP.c apmMPI.c apmOMPMPI.c

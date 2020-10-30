@@ -19,9 +19,9 @@ for algo in $(echo $BIN); do
 done
 
 # Test MPI implementation
-echo "---" ${algo} parallelized algorithm results  on $FILE "---"
+echo "---" ${algo} parallelized with MPI algorithm results  on $FILE "---"
 mpirun -np $MPI_NP ./apmMPI $APPROXIMATION $FILE $(echo $PATTERNS)
 
 # Test OMP MPI implementation
-echo "---" ${algo} parallelized algorithm results  on $FILE "---"
+echo "---" ${algo} parallelized with MPI and OMP algorithm results  on $FILE "---"
 mpirun -np $MPI_NP ./apmOMPMPI $APPROXIMATION $FILE $(echo $PATTERNS)

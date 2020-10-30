@@ -116,8 +116,8 @@ main(int argc, char **argv) {
 	struct timeval t1, t2;
 	double duration;
 	int n_bytes = 0;
-	int *n_matches;
-        MPI_Status status;
+	//int *n_matches;
+	MPI_Status status;
 
 	int world; // nb of nodes
 	int rank;  // rank of the current node
@@ -128,196 +128,155 @@ main(int argc, char **argv) {
 	printf( "Starting process %d/%d\n", rank, world);
 #endif
 
-  /* Check number of arguments */
-  if ( argc < 4 )
-  {
-    printf( "Usage: %s approximation_factor "
-            "dna_database pattern1 pattern2 ...\n",
-            argv[0] ) ;
-    return 1 ;
-  }
+	/* Check number of arguments */
+	if (argc < 4) {
+		printf("Usage: %s approximation_factor "
+		       "dna_database pattern1 pattern2 ...\n",
+		       argv[0]);
+		return 1;
+	}
 
-  /* Get the distance factor */
-  approx_factor = atoi( argv[1] ) ;
+	/* Get the distance factor */
+	approx_factor = atoi(argv[1]);
 
-  /* Grab the filename containing the target text */
-  filename = argv[2] ;
+	/* Grab the filename containing the target text */
+	filename = argv[2];
 
-  /* Get the number of patterns that the user wants to search for */
-  nb_patterns = argc - 3 ;
+	/* Get the number of patterns that the user wants to search for */
+	nb_patterns = argc - 3;
 
-  /* Fill the pattern array */
-  pattern = (char **)malloc( nb_patterns * sizeof( char * ) ) ;
-  if ( pattern == NULL )
-  {
-      fprintf( stderr,
-              "Unable to allocate array of pattern of size %d\n",
-              nb_patterns ) ;
-      return 1 ;
-  }
+	/* Fill the pattern array */
+	pattern = (char **) malloc(nb_patterns * sizeof(char *));
+	if (pattern == NULL) {
+		fprintf(stderr,
+		        "Unable to allocate array of pattern of size %d\n",
+		        nb_patterns);
+		return 1;
+	}
 
 
-  int max_len_pattern = 0;
-  /* Grab the patterns and get the maximum pattern length*/
-  for ( i = 0 ; i < nb_patterns ; i++ )
-  {
-      int l ;
+	int max_len_pattern = 0;
+	/* Grab the patterns and get the maximum pattern length*/
+	for (i = 0; i < nb_patterns; i++) {
+		int l;
 
-      l = strlen(argv[i+3]) ;
-      if ( l <= 0 )
-      {
-          fprintf( stderr, "Error while parsing argument %d\n", i+3 ) ;
-          return 1 ;
-      }
+		l = strlen(argv[i + 3]);
+		if (l <= 0) {
+			fprintf(stderr, "Error while parsing argument %d\n", i + 3);
+			return 1;
+		}
 
-      if ( l > max_len_pattern ) {
-        max_len_pattern = l;
-      }
+		if (l > max_len_pattern) {
+			max_len_pattern = l;
+		}
 
-      pattern[i] = (char *)malloc( (l+1) * sizeof( char ) ) ;
-      if ( pattern[i] == NULL )
-      {
-          fprintf( stderr, "Unable to allocate string of size %d\n", l ) ;
-          return 1 ;
-      }
+		pattern[i] = (char *) malloc((l + 1) * sizeof(char));
+		if (pattern[i] == NULL) {
+			fprintf(stderr, "Unable to allocate string of size %d\n", l);
+			return 1;
+		}
 
-      strncpy( pattern[i], argv[i+3], (l+1) ) ;
+		strncpy(pattern[i], argv[i + 3], (l + 1));
 
-  }
+	}
 
 
-  printf( "[%d]: Approximate Pattern Matching with MPI: "
-          "looking for %d pattern(s) in file %s w/ distance of %d\n",
-          rank, nb_patterns, filename, approx_factor ) ;
+	printf("[%d]: Approximate Pattern Matching with MPI: "
+	       "looking for %d pattern(s) in file %s w/ distance of %d\n",
+	       rank, nb_patterns, filename, approx_factor);
 
 
-  /* Allocate the array of matches */
-  n_matches = (int *)malloc( nb_patterns * sizeof( int ) ) ;
-  if ( n_matches == NULL )
-  {
-      fprintf( stderr, "Error: unable to allocate memory for %ldB\n",
-              nb_patterns * sizeof( int ) ) ;
-      return 1 ;
-  }
+	/*****
+	 * BEGIN MAIN LOOP
+	 ******/
 
-  /*****
-   * BEGIN MAIN LOOP
-   ******/
-
-  /* Timer start */
-  gettimeofday(&t1, NULL);
+	/* Timer start */
+	gettimeofday(&t1, NULL);
 
 
-  /* The DNA file of size `n_bytes` should be divided into `rank` parts
-     so that each MPI process has one part to take care of.
-     Process `rank` will be responsible to look for every substring in the bytes
-     from `rank * (n_bytes // size)` to `(rank + 1) * (n_bytes // size) - 1`
-     The potential remaining bytes are handled by thread `world`.
-  */
-  int diff;
-  if (rank == 0) {
-      /* Process 0 reads the input file and divides the file between the other processes*/
-      buf = read_input_file( filename, &n_bytes ) ;
-      if ( buf == NULL )
-      {
-          return 1 ;
-      }
+	/* The DNA file of size `n_bytes` should be divided into `rank` parts
+	   so that each MPI process has one part to take care of.
+	   Process `rank` will be responsible to look for every substring in the bytes
+	   from `rank * (n_bytes // size)` to `(rank + 1) * (n_bytes // size) - 1`
+	   The potential remaining bytes are handled by thread `world`.
+	*/
+	int diff;
+	if (rank == 0) {
+		/* Process 0 reads the input file and divides the file between the other processes*/
+		buf = read_input_file(filename, &n_bytes);
+		if (buf == NULL) {
+			return 1;
+		}
 
-      /* Each process needs to have access to the section of the file that it is responsible for
-       * to which we add `max_len_pattern - 1` bytes to allow him to check the patterns
-       * in case the start at the end of its associated section.
-       * */
-      int start = 0;
-      int end = n_bytes / world - 1 + max_len_pattern - 1;
-      for (i = 1; i < world; i++) {
-        start += n_bytes / world;
-        end += n_bytes / world;
-        /* The last process should check the remaining bytes
-           until `n_bytes`*/
-        if (end > n_bytes || i == world - 1) {
-          end = n_bytes;
-        }
+		/* Each process needs to have access to the section of the file that it is responsible for
+		 * to which we add `max_len_pattern - 1` bytes to allow him to check the patterns
+		 * in case the start at the end of its associated section.
+		 * */
+		int start = 0;
+		int end = n_bytes / world - 1 + max_len_pattern - 1;
+		for (i = 1; i < world; i++) {
+			start += n_bytes / world;
+			end += n_bytes / world;
+			/* The last process should check the remaining bytes
+			   until `n_bytes`*/
+			if (end > n_bytes || i == world - 1) {
+				end = n_bytes;
+			}
 #if APM_DEBUG
-  printf( "[%d] will process bytes %d to %d\n", i, start, end);
+			printf( "[%d] will process bytes %d to %d\n", i, start, end);
 #endif
-        diff = end - start + 1;
-        /* Send to each process its attributed section */
-        MPI_Send(&diff, 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
-        MPI_Send(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD);
-      }
-      diff = n_bytes / world - 1 + max_len_pattern - 1;
-  } else {
-      /* Other processes receive the number of bytes they need to process */
-      MPI_Recv(&diff, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-      /* They need to allocate data to copy the target text according to the received size*/
-      buf = (char *)malloc( diff * sizeof ( char ) ) ;
-      if ( buf == NULL )
-      {
-          fprintf( stderr, "Unable to allocate %ld byte(s) for buf array\n",
-                  diff ) ;
-          return EXIT_FAILURE;
-      }
-      /* They receive their part of the file */
-      MPI_Recv(buf, diff, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-  }
+			diff = end - start + 1;
+			/* Send to each process its attributed section */
+			MPI_Send(&diff, 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
+			MPI_Send(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD);
+		}
+		diff = n_bytes / world - 1 + max_len_pattern - 1;
+	} else {
+		/* Other processes receive the number of bytes they need to process */
+		MPI_Recv(&diff, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
+		/* They need to allocate data to copy the target text according to the received size*/
+		buf = (char *) malloc(diff * sizeof(char));
+		if (buf == NULL) {
+			fprintf(stderr, "Unable to allocate %ld byte(s) for buf array\n",
+			        diff);
+			return EXIT_FAILURE;
+		}
+		/* They receive their part of the file */
+		MPI_Recv(buf, diff, MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
+	}
 
-
-    /* error flag to avoid return in omp parallel loop */
-    int flag = 0;
-    #pragma omp parallel for schedule(dynamic) private(i, j)
-    for ( i = 0 ; i < nb_patterns ; i++ )
-    {
-        if (flag == 0)
-        {
-            int size_pattern = strlen(pattern[i]) ;
-
-            int * column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
-
-            if ( column == NULL )
-            {
-                fprintf( stderr, "Error: unable to allocate memory for column (%ldB)\n",
-                        (size_pattern+1) * sizeof( int ) ) ;
-                flag = 1;
-            }
-
-            n_matches[i] = 0 ;
-
-            #pragma omp parallel for schedule(dynamic) private(j)
-            for ( j = 0 ; j < diff - max_len_pattern + 1; j++ )
-            {
-                int distance = 0 ;
-                int size ;
-
-                #if APM_DEBUG
-                if ( j % 100 == 0 )
-                {
-                    printf( "[%d]: processing byte %d (out of %d) for pattern %s\n", rank, j, diff, pattern[i] ) ;
-                }
-                #endif
-
-                /* Process `rank` should check every substring starting in its attributed range.
-                The size is equals to the pattern size except for when the end of the buffer is reached.*/
-                size = size_pattern ;
-                if ( diff - j < size_pattern )
-                {
-                    size = diff - j ;
-                }
-
-                distance = levenshtein( pattern[i], &buf[j], size, column ) ;
-
-                if ( distance <= approx_factor ) {
-                    n_matches[i]++ ;
-                }
-            }
-            free( column );
-        }
-
-    }
-    /* return 1 if error flag is set */
-    if (flag != 0)
-    {
-        return flag;
-    }
+	int size_pattern;
+	int n_matches[size_pattern];
+#pragma omp parallel for collapse(2) schedule(dynamic) private(i,j)
+	for (i = 0; i < nb_patterns; i++) {
+		for (j = 0; j < diff - max_len_pattern + 1; j++) {
+			int distance = 0;
+			int size;
+			if(j == 0){
+#pragma omp atomic write
+				n_matches[i] = 0;
+			}
+			size_pattern = strlen(pattern[i]);
+#if APM_DEBUG
+			if ( j % 100 == 0 )
+			{
+				printf( "[%d]: processing byte %d (out of %d) for pattern %s\n", rank, j, diff, pattern[i] ) ;
+			}
+#endif
+			/* Process `rank` should check every substring starting in its attributed range.
+			The size is equals to the pattern size except for when the end of the buffer is reached.*/
+			size = size_pattern;
+			if (diff - j < size_pattern) {
+				size = diff - j;
+			}
+			int column[size_pattern + 1];
+			distance = levenshtein(pattern[i], &buf[j], size, column);
+			if (distance <= approx_factor) {
+#pragma omp atomic
+				n_matches[i]++;
+			}
+		}
+	}
 
 #if APM_DEBUG
 	for ( i = 0 ; i < nb_patterns ; i++ )
@@ -357,32 +316,19 @@ main(int argc, char **argv) {
 
 	/* Timer stop */
 	gettimeofday(&t2, NULL);
+	duration = ((t2.tv_sec - t1.tv_sec) * 1e6 + (t2.tv_usec - t1.tv_usec)) / 1e6;
 
-	duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
 #if APM_DEBUG
 
 	printf("[%d]: APM done in %lf s\n", rank, duration);
 #endif
-	double total_duration =  duration;
-	if(rank == 0){
-		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
-		MPI_Status status;
-		for(i = 1; i < world; i++){
-			double aux;
-			MPI_Recv(&aux, 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
-			total_duration += aux;
-		}
-		printf("APM done in %lf s\n", total_duration);
-	}
-	else {
-		MPI_Send(&duration, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);
-	}
 
 	/*****
 	 * END MAIN LOOP
 	 ******/
 
 	if (rank == 0) {
+		printf("APM done in %lf s\n", duration);
 		for (i = 0; i < nb_patterns; i++) {
 			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
 		}
