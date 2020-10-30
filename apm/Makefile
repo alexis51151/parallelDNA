@@ -1,4 +1,4 @@
-BIN=apm apmOMP apmMPI apmOMPMPI
+BIN=apm apmMPI apmOMPMPI apmParallel 
 SRC_DIR=src
 HEADER_DIR=include
 OBJ_DIR=obj
@@ -8,9 +8,9 @@ MPICC=mpicc
 CFLAGS=-g -O3 -I$(HEADER_DIR) -I/usr/include/mpi/ -fopenmp
 LDFLAGS=
 
-SRC= apm.c apmOMP.c apmMPI.c apmOMPMPI.c
+SRC= apm.c apmOMP.c apmMPI.c apmOMPMPI.c apmParallel.c
 
-OBJ= $(OBJ_DIR)/apm.o $(OBJ_DIR)/apmOMP.o $(OBJ_DIR)/apmMPI.o $(OBJ_DIR)/apmOMPMPI.c
+OBJ= $(OBJ_DIR)/apm.o $(OBJ_DIR)/apmOMP.o $(OBJ_DIR)/apmMPI.o $(OBJ_DIR)/apmOMPMPI.o $(OBJ_DIR)/apmParallel.o
 
 all: $(OBJ_DIR) $(BIN)
 
@@ -32,6 +32,8 @@ apmMPI:$(OBJ_DIR)/apmMPI.o
 apmOMPMPI:$(OBJ_DIR)/apmOMPMPI.o
 	$(MPICC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
+apmParallel:$(OBJ_DIR)/apmParallel.o
+	$(MPICC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 clean:
 	rm -f $(BIN) $(OBJ)
