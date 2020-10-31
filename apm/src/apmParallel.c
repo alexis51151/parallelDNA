@@ -215,6 +215,7 @@ main(int argc, char **argv) {
 	   The potential remaining bytes are handled by thread `world`.
 	*/
 	int diff;
+	MPI_Request req[world-1];
 	if (rank == 0) {
 		/* Process 0 reads the input file and divides the file between the other processes*/
 		buf = read_input_file( filename, &n_bytes ) ;
@@ -243,7 +244,7 @@ main(int argc, char **argv) {
 			diff = end - start + 1;
 			/* Send to each process its attributed section */
 			MPI_Send(&diff, 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
-			MPI_Send(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD);
+			MPI_Isend(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD, &req[i]);
 		}
 		diff = n_bytes / world - 1 + max_len_pattern - 1;
 	} else {
@@ -337,31 +338,13 @@ main(int argc, char **argv) {
 	/* Timer stop */
 	gettimeofday(&t2, NULL);
 
-	duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
-#if APM_DEBUG
-
-	printf("[%d]: APM done in %lf s\n", rank, duration);
-#endif
-	double total_duration =  duration;
-	if(rank == 0){
-		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
-		MPI_Status status;
-		for(i = 1; i < world; i++){
-			double aux;
-			MPI_Recv(&aux, 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
-			total_duration += aux;
-		}
-		printf("APM done in %lf s\n", total_duration);
-	}
-	else {
-		MPI_Send(&duration, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);
-	}
-
 	/*****
 	 * END MAIN LOOP
 	 ******/
 
 	if (rank == 0) {
+		duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
+		printf("[%d]: APM done in %lf s\n", rank, duration);
 		for (i = 0; i < nb_patterns; i++) {
 			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
 		}
