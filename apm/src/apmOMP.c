@@ -78,16 +78,16 @@ read_input_file( char * filename, int * size )
 #define MIN3(a, b, c) ((a) < (b) ? ((a) < (c) ? (a) : (c)) : ((b) < (c) ? (b) : (c)))
 
 int levenshtein(char *s1, char *s2, int len, int * column) {
-	unsigned int x, y, lastdiag, olddiag;
+	unsigned lastdiag, olddiag;
 
-	for (y = 1; y <= len; y++)
+	for (int y = 1; y <= len; y++)
 	{
 		column[y] = y;
 	}
-	for (x = 1; x <= len; x++) {
+	for (int x = 1; x <= len; x++) {
 		column[0] = x;
 		lastdiag = x-1 ;
-		for (y = 1; y <= len; y++) {
+		for (int y = 1; y <= len; y++) {
 			olddiag = column[y];
 			column[y] = MIN3(
 					column[y] + 1,
@@ -202,15 +202,12 @@ main( int argc, char ** argv )
 
 
 		int size_pattern = strlen(pattern[i]) ;
-
-		int * column ;
-
 		n_matches[i] = 0 ;
 
-#pragma omp parallel for schedule(dynamic) private(j, column)
+#pragma omp parallel for schedule(static) private(j)
 		for ( j = 0 ; j < n_bytes ; j++ )
 		{
-			column = (int *)malloc( (size_pattern+1) * sizeof( int ) ) ;
+			int column[size_pattern+1];
 			int distance = 0 ;
 			int size ;
 
@@ -235,7 +232,6 @@ main( int argc, char ** argv )
 			}
 		}
 
-		free( column );
 	}
 
 	/* Timer stop */
