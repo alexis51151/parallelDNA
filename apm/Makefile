@@ -1,4 +1,4 @@
-BIN=apm apmMPI apmOMPMPI apmParallel 
+BIN=apm apmMPI apmOMP apmOMPMPI apmParallel 
 SRC_DIR=src
 HEADER_DIR=include
 OBJ_DIR=obj

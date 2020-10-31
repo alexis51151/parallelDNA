@@ -270,7 +270,7 @@ main(int argc, char **argv) {
 
 			int *column;
 
-
+#pragma omp atomic write
 			n_matches[i] = 0;
 #pragma omp parallel for schedule(dynamic) private(j, column)
 			for (j = 0; j < diff - size_pattern + 1; j++) {
