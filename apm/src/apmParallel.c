@@ -262,17 +262,13 @@ main(int argc, char **argv) {
 	}
 
 	int size_pattern;
-#pragma omp parallel private(i,j, size_pattern)
-	{
-#pragma omp for schedule(dynamic)
+	
 		for (i = 0; i < nb_patterns; i++) {
 			size_pattern = strlen(pattern[i]);
 
 			int *column;
-
-#pragma omp atomic write
 			n_matches[i] = 0;
-#pragma omp parallel for schedule(dynamic) private(j, column)
+#pragma omp parallel for schedule(static) private(j, column)
 			for (j = 0; j < diff - size_pattern + 1; j++) {
 				int *column = (int *) malloc((size_pattern + 1) * sizeof(int));
 				int distance = 0;
@@ -300,7 +296,6 @@ main(int argc, char **argv) {
 				}
 			}
 			free(column);
-		}
 	}
 
 #if APM_DEBUG
