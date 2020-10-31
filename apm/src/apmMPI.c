@@ -276,7 +276,7 @@ main(int argc, char **argv) {
 
       n_matches[i] = 0 ;
 
-      for ( j = 0 ; j < diff - max_len_pattern + 1; j++ )
+      for ( j = 0 ; j < diff - size_pattern + 1; j++ )
       {
           int distance = 0 ;
           int size ;
