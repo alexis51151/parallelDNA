@@ -215,6 +215,7 @@ main(int argc, char **argv) {
      The potential remaining bytes are handled by thread `world`.
   */
   int diff;
+  MPI_Request req[world-1];
   if (rank == 0) {
       /* Process 0 reads the input file and divides the file between the other processes*/
       buf = read_input_file( filename, &n_bytes ) ;
@@ -243,7 +244,7 @@ main(int argc, char **argv) {
         diff = end - start + 1;
         /* Send to each process its attributed section */
         MPI_Send(&diff, 1, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
-        MPI_Send(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD);
+        MPI_Isend(&buf[start], diff, MPI_BYTE, i, 0, MPI_COMM_WORLD, &req[i]);
       }
       diff = n_bytes / world - 1 + max_len_pattern - 1;
   } else {
