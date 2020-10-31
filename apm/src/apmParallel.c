@@ -337,31 +337,13 @@ main(int argc, char **argv) {
 	/* Timer stop */
 	gettimeofday(&t2, NULL);
 
-	duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
-#if APM_DEBUG
-
-	printf("[%d]: APM done in %lf s\n", rank, duration);
-#endif
-	double total_duration =  duration;
-	if(rank == 0){
-		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
-		MPI_Status status;
-		for(i = 1; i < world; i++){
-			double aux;
-			MPI_Recv(&aux, 1, MPI_DOUBLE, i, i, MPI_COMM_WORLD, &status);
-			total_duration += aux;
-		}
-		printf("APM done in %lf s\n", total_duration);
-	}
-	else {
-		MPI_Send(&duration, 1, MPI_DOUBLE, 0, rank, MPI_COMM_WORLD);
-	}
-
 	/*****
 	 * END MAIN LOOP
 	 ******/
 
 	if (rank == 0) {
+		duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
+		printf("[%d]: APM done in %lf s\n", rank, duration);
 		for (i = 0; i < nb_patterns; i++) {
 			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
 		}
