@@ -31,19 +31,45 @@ make
 ./apm approximation_factor dna_database pattern1 pattern2 ...
 ```
 - Parallel execution :
+
 With OpenMP:
 ```bash
+export OMP_NUM_THREAD=number_of_cores;
 ./apmOMP approximation_factor dna_database pattern1 pattern2 ...
 ```
 With MPI:
 ```bash
-mpirun -np number_of_processes ./apmMPI approximation_factor dna_database pattern1 pattern2 ...
+mpirun -np number_of_machines -f hosts ./apmMPI approximation_factor dna_database pattern1 pattern2 ...
+```
+
+Hybrid : 
+
+```bash
+export OMP_NUM_THREAD=number_of_cores;
+mpirun -np number_of_machines -f hosts ./apmParallel approximation_factor dna_database pattern1 pattern2 ...
 ```
 
 
 ## Benchmarking
 
-Not yet done.
+- OpenMP Benchmark :
+
+```bash
+./run.sh | tee run.data
+gnuplot speedup.sh
+display SpeedUpAPM-OMP.png
+```
+
+- MPI Benchmark :
+
+```bash
+./mpi_speedup.sh | tee mpi_speedup.data
+gnuplot mpi_speedup.sh
+display SpeedUpAPM-MPI.png
+```
+
+Benchmarking slides soon...
+
 
 
 ## Authors
