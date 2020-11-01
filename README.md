@@ -68,8 +68,7 @@ gnuplot mpi_speedup.sh
 display SpeedUpAPM-MPI.png
 ```
 
-Benchmarking slides soon...
-
+Detailed benchmark to be found in ```apm/results/Slides CSC5001.pdf```
 
 
 ## Authors
