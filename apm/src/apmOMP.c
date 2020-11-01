@@ -195,16 +195,14 @@ main( int argc, char ** argv )
 
 	/* Timer start */
 	gettimeofday(&t1, NULL);
-
+#pragma omp parallel for private(i,j)
 	for ( i = 0 ; i < nb_patterns ; i++ )
 	{
-
-
-
 		int size_pattern = strlen(pattern[i]) ;
+#pragma omp atomic write
 		n_matches[i] = 0 ;
 
-#pragma omp parallel for schedule(static) private(j)
+#pragma omp for schedule(static) 
 		for ( j = 0 ; j < n_bytes ; j++ )
 		{
 			int column[size_pattern+1];
@@ -231,7 +229,6 @@ main( int argc, char ** argv )
 				n_matches[i]++ ;
 			}
 		}
-
 	}
 
 	/* Timer stop */
