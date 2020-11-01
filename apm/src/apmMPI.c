@@ -313,33 +313,9 @@ main(int argc, char **argv) {
 	}
 #endif
 
-	/* Each process sends its `n_matches` array to process 0
-	Process 0 receives each array and sums it to its own `n_matches`*/
-	if (rank == 0) {
-
-		/* Receives `n_matches` for every process and sums it to its own `n_matches` */
-		MPI_Status status;
-		/* Allocate an array to receive matches */
-		int *n_matches_recv = (int *) malloc(nb_patterns * sizeof(int));
-		if (n_matches_recv == NULL) {
-			fprintf(stderr, "Error: unable to allocate memory for %ldB\n",
-			        nb_patterns * sizeof(int));
-			return 1;
-		}
-		for (i = 1; i < world; i++) {
-			/* Clear the buffer */
-			memset(n_matches_recv, 0, nb_patterns * sizeof(int));
-			/* Read the array of matches from rank i*/
-			MPI_Recv(n_matches_recv, nb_patterns, MPI_INTEGER, i, i, MPI_COMM_WORLD, &status);
-			for (j = 0; j < nb_patterns; j++) {
-				n_matches[j] += n_matches_recv[j];
-			}
-		}
-		/* Free array */
-		free(n_matches_recv);
-	} else {
-		MPI_Send(n_matches, nb_patterns, MPI_INTEGER, 0, rank, MPI_COMM_WORLD);
-	}
+	/* Sum total matches to process 0 */
+	int n_matches_total[nb_patterns];
+	MPI_Reduce(n_matches, n_matches_total, nb_patterns, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 
 	/* Timer stop */
@@ -353,7 +329,7 @@ main(int argc, char **argv) {
 		duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
 		printf("[%d]: APM done in %lf s\n", rank, duration);
 		for (i = 0; i < nb_patterns; i++) {
-			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
+			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches_total[i]);
 		}
 	}
 
