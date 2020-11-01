@@ -266,12 +266,10 @@ main(int argc, char **argv) {
 	
 		for (i = 0; i < nb_patterns; i++) {
 			size_pattern = strlen(pattern[i]);
-
-			int *column;
 			n_matches[i] = 0;
-#pragma omp parallel for schedule(static) private(j, column)
+#pragma omp parallel for schedule(static) private(j)
 			for (j = 0; j < diff - size_pattern + 1; j++) {
-				int *column = (int *) malloc((size_pattern + 1) * sizeof(int));
+				int column[size_pattern+1];
 				int distance = 0;
 				int size;
 
@@ -296,7 +294,6 @@ main(int argc, char **argv) {
 					n_matches[i]++;
 				}
 			}
-			free(column);
 	}
 
 #if APM_DEBUG
@@ -344,7 +341,7 @@ main(int argc, char **argv) {
 
 	if (rank == 0) {
 		duration = (t2.tv_sec - t1.tv_sec) + ((t2.tv_usec - t1.tv_usec) / 1e6);
-		printf("[%d]: APM done in %lf s\n", rank, duration);
+		printf("APM done in %lf s\n", rank, duration);
 		for (i = 0; i < nb_patterns; i++) {
 			printf("Total number of matches for pattern <%s>: %d\n", pattern[i], n_matches[i]);
 		}
