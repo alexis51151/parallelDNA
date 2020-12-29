@@ -1,10 +1,8 @@
 # APM parallelized for DNA analysis
-DNA sequence comparison tool implementing Approximate Pattern Matching (APM) algorithm with levenshtein's distance.
+DNA sequence comparison tool implementing Approximate Pattern Matching (APM) algorithm using levenshtein's distance.
 
 ## Libraries used
-
-In this project, we intend to use primarly OpenMP and MPI in order to use parallelism for perfomance-enhancement compared to the sequential APM.
-Might use CUDA at some moments if necessary.
+This project combines OpenMP and MPI parallelization for a cluster of multicore machines
 
 ## How to use
 
