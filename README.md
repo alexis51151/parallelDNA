@@ -70,5 +70,5 @@ Detailed benchmark and results analysis to be found at ```apm/results/Slides CSC
 
 
 ## Authors
-- Alexis Le Glaunec
-- Alice Zhen
+- [Alexis Le Glaunec](https://github.com/alexis51151)
+- [Alice Zhen](https://github.com/meroupatate)
