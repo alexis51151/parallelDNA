@@ -40,7 +40,7 @@ With MPI:
 mpirun -np number_of_machines -f hosts ./apmMPI approximation_factor dna_database pattern1 pattern2 ...
 ```
 
-Hybrid : 
+Hybrid (OpenMP + MPI) : 
 
 ```bash
 export OMP_NUM_THREAD=number_of_cores;
@@ -66,7 +66,7 @@ gnuplot mpi_speedup.sh
 display SpeedUpAPM-MPI.png
 ```
 
-Detailed benchmark to be found in ```apm/results/Slides CSC5001.pdf```
+Detailed benchmark and results analysis to be found at ```apm/results/Slides CSC5001.pdf```
 
 
 ## Authors
